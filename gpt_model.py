@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-from config import (VOCAB_SIZE,EMBED_SIZE,BLOCK_SIZE,)
 
-# Token Embedding
 class TokenEmbedding(nn.Module):
   def __init__(self, vocab_size, embed_size):
     super().__init__()
@@ -23,18 +21,6 @@ class PositionalEmbedding(nn.Module):
     T = tokens.shape[1] # tokens -> (B, T)
     positions = torch.arange(T, device=tokens.device) # -> (T,)
     x = self.position_embedding_table(positions) # -> (T, C)
-    return x
-  
-class GPT(nn.Module):
-  def __init__(self, vocab_size, embed_size, block_size):
-    super().__init__()
-    self.token_embedding = TokenEmbedding(vocab_size, embed_size)
-    self.position_embedding = PositionalEmbedding(block_size, embed_size)
-
-  def forward(self, tokens):
-    token_embeddings = self.token_embedding(tokens) # -> (B, T, C)
-    position_embeddings = self.position_embedding(tokens) # -> (T, C)
-    x = token_embeddings + position_embeddings
     return x
   
 class MultiHeadCausalSelfAttention(nn.Module):
@@ -98,3 +84,27 @@ class DecoderBlock(nn.Module):
     x = x + self.attn(self.layer_norm1(x)) 
     x = x + self.mlp(self.layer_norm2(x))
     return x
+  
+class GPT(nn.Module):
+  def __init__(self, vocab_size, embed_size, block_size, dropout, num_heads, num_layers):
+    super().__init__()
+    self.token_embedding = TokenEmbedding(vocab_size, embed_size)
+    self.position_embedding = PositionalEmbedding(block_size, embed_size)
+    self.dropout = nn.Dropout(dropout)
+    self.blocks = nn.ModuleList(
+        [DecoderBlock(embed_size, num_heads, block_size, dropout) 
+        for _ in range(num_layers)])
+    self.ln_f = nn.LayerNorm(embed_size)
+    self.lm_head = nn.Linear(embed_size, vocab_size, bias=False) # (B,T,C) -> (B,T,V(vocab_size))
+
+  def forward(self, tokens):
+    # tokens = (B, T)
+    token_embeddings = self.token_embedding(tokens) # -> (B, T, C)
+    position_embeddings = self.position_embedding(tokens) # -> (T, C)
+    x = token_embeddings + position_embeddings # (B,T,C) + (T,C) -> (B,T,C)
+    x = self.dropout(x)
+    for block in self.blocks:
+      x = block(x)
+    x = self.ln_f(x)
+    logits = self.lm_head(x) # (B,T,C) -> (B,T,V(vocab_size))
+    return logits
