@@ -1,0 +1,52 @@
+============================================================
+Prompt:
+The
+
+Output:
+Theie <unk> . 
+ 
+ = = = Ratings = = = 
+ 
+ "" Crazy in Love "" was nominated for a Grammy Award for Best Song Written for a Best Song Written for "" Best Song of the Year "" at the 2003 MTV Video Music Awards .
+The song won the award for Best Alternative Video at the 2003 MTV Video Music Awards in 1993 . 
+ 
+ = = Background = = 
+ 
+ "" Crazy in Love "" was written by Beyoncé , Kelly
+
+============================================================
+
+Prompt:
+He is
+
+Output:
+He is a <unk> of the <unk> of the <unk> . 
+ 
+ = = = <unk> = = = 
+ 
+ The <unk> of the <unk> is located at the edge of the edge of the <unk> <unk> .
+ It was the first time that the first recorded observations were made by the Gregorian Calendar Reform . The sundial consisted of a small , dark oval , narrow @-@ <unk> , and a <unk
+
+=============================================================
+
+Prompt:
+She was
+
+Output:
+She was a dangerous time , and the season ended with a 4 – 1 record , which was the worst record in the history of the season . 
+ 
+ = = = Liverpool Academy = = = 
+ 
+ Torres made his first Premier League debut on 24 August , after he was selected as a substitute for Spain 's UEFA Champions League , which was his only goal in the 1 – 0 win on 11 August . Torres scored the opening goal of the season in Liverpool 's 1 – 0 home
+
+==============================================================
+
+Prompt:
+Drogba
+
+Output:
+Drogba is a reference to the island of <unk> , where the island is located . 
+ 
+ = = = = Republic of Ireland = = = = 
+ 
+ The Republic of Ireland is a parliamentary democracy based on the island of Ireland . The Republic of Ireland is the crown of Ireland , the United Kingdom , and the Northern Ireland . The Republic is a popular angling destination . The Republic is a popular angling destination which is a popular angling destination . The temperate Irish climate
