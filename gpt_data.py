@@ -26,6 +26,10 @@ def tokenize(text):
   token_ids = enc.encode(text)
   return token_ids
 
+def decode(token_ids):
+    text = enc.decode(token_ids)
+    return text
+
 import torch
 from torch.utils.data import Dataset
 
