@@ -6,6 +6,7 @@ import os
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.amp import autocast, GradScaler
 
 # ==========================================================
 # Device
@@ -33,7 +34,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 os.makedirs(WEIGHTS_DIR, exist_ok=True)
 
 # ==========================================================
-# Save Function
+# Save / Verify Functions
 # ==========================================================
 def verify_checkpoint(path):
     try:
@@ -45,13 +46,24 @@ def verify_checkpoint(path):
         return False
 
 
-def save_checkpoint(path, epoch, optimizer, loss):
+def get_save_model():
+    """
+    Returns the original model if torch.compile() is enabled.
+    Otherwise returns the normal model.
+    """
+    return model._orig_mod if hasattr(model, "_orig_mod") else model
+
+
+def save_checkpoint(path, epoch, optimizer, scaler, loss):
+
+    save_model = get_save_model()
 
     torch.save(
         {
             "epoch": epoch,
-            "model_state_dict": model.state_dict(),
+            "model_state_dict": save_model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
+            "scaler_state_dict": scaler.state_dict(),
             "loss": loss,
         },
         path,
@@ -62,9 +74,15 @@ def save_checkpoint(path, epoch, optimizer, loss):
 
 def save_model(path):
 
-    torch.save(model.state_dict(), path)
+    save_model_obj = get_save_model()
+
+    torch.save(
+        save_model_obj.state_dict(),
+        path,
+    )
 
     verify_checkpoint(path)
+
 
 # ==========================================================
 # Model
@@ -82,6 +100,7 @@ model = GPT(
 # Dataset
 # ==========================================================
 dataset_path = download_dataset()
+
 text = load_dataset(dataset_path)
 text = clean_text(text)
 
@@ -90,7 +109,7 @@ token_ids = tokenize(text)
 dataset = GPTDataset(
     token_ids,
     BLOCK_SIZE,
-    stride = 64
+    stride=64,
 )
 
 train_loader = DataLoader(
@@ -108,10 +127,66 @@ optimizer = torch.optim.AdamW(
 )
 
 # ==========================================================
-# Training
+# AMP
 # ==========================================================
+scaler = GradScaler(
+    enabled=device.type == "cuda"
+)
+
+# ==========================================================
+# Resume Training
+# ==========================================================
+CHECKPOINT_PATH = os.path.join(
+    CHECKPOINT_DIR,
+    "checkpoint_epoch_4.pt",   # istediğinde değiştirebilirsin
+)
+
 best_loss = float("inf")
 
+if os.path.exists(CHECKPOINT_PATH):
+
+    print("\nLoading checkpoint...")
+
+    checkpoint = torch.load(
+        CHECKPOINT_PATH,
+        map_location=device,
+        weights_only=False,
+    )
+
+    model.load_state_dict(
+        checkpoint["model_state_dict"]
+    )
+
+    optimizer.load_state_dict(
+        checkpoint["optimizer_state_dict"]
+    )
+
+    if "scaler_state_dict" in checkpoint:
+        scaler.load_state_dict(
+            checkpoint["scaler_state_dict"]
+        )
+
+    best_loss = checkpoint["loss"]
+
+    print("Checkpoint loaded successfully!")
+    print(f"Resuming from loss: {best_loss:.4f}")
+
+else:
+
+    print("No checkpoint found. Starting from scratch.")
+
+# ==========================================================
+# torch.compile (PyTorch 2.x)
+# ==========================================================
+if hasattr(torch, "compile"):
+
+    model = torch.compile(model)
+
+    print("torch.compile enabled!")
+
+# ==========================================================
+# Training
+# ==========================================================
 model.train()
 
 for epoch in range(EPOCHS):
@@ -123,36 +198,46 @@ for epoch in range(EPOCHS):
         x = x.to(device)
         y = y.to(device)
 
-        logits = model(x)
+        optimizer.zero_grad(set_to_none=True)
 
-        B, T, V = logits.shape
+        with autocast(
+            device_type=device.type,
+            enabled=device.type == "cuda",
+        ):
 
-        logits = logits.reshape(B * T, V)
-        targets = y.reshape(B * T)
+            logits = model(x)
 
-        loss = F.cross_entropy(logits, targets)
+            B, T, V = logits.shape
 
-        optimizer.zero_grad()
+            logits = logits.reshape(B * T, V)
+            targets = y.reshape(B * T)
 
-        loss.backward()
+            loss = F.cross_entropy(
+                logits,
+                targets,
+            )
 
-        optimizer.step()
+        scaler.scale(loss).backward()
+
+        scaler.step(optimizer)
+        scaler.update()
 
         epoch_loss += loss.item()
 
-        # ==========================================
+        # ==================================================
         # Print Loss
-        # ==========================================
+        # ==================================================
         if batch_idx % 100 == 0:
+
             print(
                 f"Epoch [{epoch+1}/{EPOCHS}] "
                 f"Batch [{batch_idx}/{len(train_loader)}] "
                 f"Loss: {loss.item():.4f}"
             )
 
-        # ==========================================
+        # ==================================================
         # Periodic Checkpoint
-        # ==========================================
+        # ==================================================
         if (batch_idx + 1) % 5000 == 0:
 
             checkpoint_path = os.path.join(
@@ -160,12 +245,13 @@ for epoch in range(EPOCHS):
                 f"checkpoint_batch_{batch_idx+1}.pt",
             )
 
-            print(f"\nSaving periodic checkpoint...")
+            print("\nSaving periodic checkpoint...")
 
             save_checkpoint(
                 checkpoint_path,
                 epoch + 1,
                 optimizer,
+                scaler,
                 loss.item(),
             )
 
@@ -175,9 +261,9 @@ for epoch in range(EPOCHS):
 
     print(f"\nEpoch {epoch+1} Average Loss: {avg_loss:.4f}")
 
-    # ==========================================
+    # ==================================================
     # Epoch Checkpoint
-    # ==========================================
+    # ==================================================
     epoch_checkpoint = os.path.join(
         CHECKPOINT_DIR,
         f"checkpoint_epoch_{epoch+1}.pt",
@@ -187,12 +273,13 @@ for epoch in range(EPOCHS):
         epoch_checkpoint,
         epoch + 1,
         optimizer,
+        scaler,
         avg_loss,
     )
 
-    # ==========================================
+    # ==================================================
     # Best Model
-    # ==========================================
+    # ==================================================
     if avg_loss < best_loss:
 
         best_loss = avg_loss
@@ -204,7 +291,7 @@ for epoch in range(EPOCHS):
 
         save_model(best_model_path)
 
-        print(f"New Best Model! Loss: {best_loss:.4f}")
+        print(f"🔥 New Best Model! Loss: {best_loss:.4f}")
 
     print(f"Best Loss: {best_loss:.4f}\n")
 
