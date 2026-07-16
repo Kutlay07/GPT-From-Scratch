@@ -88,12 +88,21 @@ class MultiHeadCausalSelfAttention(nn.Module):
     if past_v is not None:
       v = torch.cat([past_v, v], dim=2)
       
-    out = F.scaled_dot_product_attention(
+    if past_k is not None:
+      out = F.scaled_dot_product_attention(
+          q,
+          k,
+          v,
+          dropout_p=self.attn_dropout.p if self.training else 0.0,
+          is_causal=False,)
+    else:
+      out = F.scaled_dot_product_attention(
         q,
         k,
         v,
         dropout_p=self.attn_dropout.p if self.training else 0.0,
-        is_causal=True,)
+        is_causal=True
+      )
     # Q(B, H, T, D), K(B, H, T, D), V(B, H, T, D)
     # -> Flash Attention -> (B, H, T, D)
 
