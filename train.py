@@ -42,7 +42,7 @@ text = load_dataset(dataset_path)
 text = clean_text(text)
 token_ids = tokenize(text)
 
-dataset = GPTDataset(token_ids, BLOCK_SIZE,stride=64)
+dataset = GPTDataset(token_ids, BLOCK_SIZE,stride=STRIDE)
 
 train_size = int(0.95 * len(dataset))
 val_size = len(dataset) - train_size
@@ -58,12 +58,60 @@ train_loader = DataLoader(
 val_loader = DataLoader(val_dataset,
                         batch_size=BATCH_SIZE,
                         shuffle=False,)
+
 # =========================
 # Optimizer
 # =========================
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=LEARNING_RATE
+)
+
+# ==========================
+# SCHEDULER
+# ==========================
+class WarmupCosineScheduler:
+    def __init__(self, optimizer, warmup_steps, total_steps, max_lr, min_lr):
+        self.optimizer = optimizer
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        self.max_lr = max_lr
+        self.min_lr = min_lr
+        self.step_num = 0
+
+    def step(self):
+        self.step_num += 1
+
+        if self.step_num < self.warmup_steps:
+            lr = self.max_lr * self.step_num / self.warmup_steps
+
+        else:
+            progress = (
+                (self.step_num - self.warmup_steps)
+                / (self.total_steps - self.warmup_steps)
+            )
+
+            cosine = 0.5 * (1 + math.cos(math.pi * progress))
+
+            lr = self.min_lr + (self.max_lr - self.min_lr) * cosine
+
+        for param_group in self.optimizer.param_groups:
+            param_group["lr"] = 0.0
+
+    def state_dict(self):
+        return {"step_num": self.step_num}
+
+    def load_state_dict(self, state_dict):
+        self.step_num = state_dict["step_num"]
+
+total_steps = len(train_loader) * EPOCHS
+
+scheduler = WarmupCosineScheduler(
+    optimizer=optimizer,
+    warmup_steps=WARMUP_STEPS,
+    total_steps=total_steps,
+    max_lr=LEARNING_RATE,
+    min_lr=MIN_LR,
 )
 
 # --- GradScaler ---
@@ -98,6 +146,11 @@ if os.path.exists(CHECKPOINT_PATH):
     if "scaler_state_dict" in checkpoint:
         scaler.load_state_dict(
             checkpoint["scaler_state_dict"]
+        )
+        
+    if "scheduler_state_dict" in checkpoint:
+        scheduler.load_state_dict(
+            checkpoint["scheduler_state_dict"]
         )
 
     best_loss = checkpoint["loss"]
@@ -156,14 +209,20 @@ for epoch in range(EPOCHS):
 
         scaler.step(optimizer)
         scaler.update()
+        
+        scheduler.step()
 
         epoch_loss += loss.item()
 
         if batch_idx % 100 == 0:
+            
+            current_lr = optimizer.param_groups[0]["lr"]
+            
             print(
                 f"Epoch [{epoch+1}/{EPOCHS}] "
                 f"Batch [{batch_idx}/{len(train_loader)}] "
                 f"Loss: {loss.item():.4f}"
+                f"LR: {current_lr:.6f}"
             )
 
     avg_loss = epoch_loss / len(train_loader)
@@ -212,6 +271,7 @@ for epoch in range(EPOCHS):
             "model_state_dict": save_model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "scaler_state_dict": scaler.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
             "loss": avg_loss,
         },
         checkpoint_path,

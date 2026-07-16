@@ -109,13 +109,13 @@ class MLP(nn.Module):
     self.dropout = nn.Dropout(dropout)
 
   def forward(self, x):
-    up = self.up_proj(x) # (B,T,C) -> (B,T,hidden_size)
+    up = self.up_proj(x) # (B,T,C)
     gate = self.gate_proj(x) # (B,T,embed_size) -> (B,T,hidden_size)
-    gate = self.silu(gate) # -> (B,T,hidden_size) (same)
+    gate = self.silu(gate) # -> (B,T,hidden_size) -> (B,T,hidden_size)
     x = gate * up # Element-wise multiplication
     x = self.down_proj(x) # (B,T,hidden_size) -> (B,T,embed_size)
-    x = self.dropout(x) # (B,T,embed_size)  (same)
-  
+    x = self.dropout(x) # (B,T,embed_size) -> (B,T,embed_size)
+
     return x
   
 class DecoderBlock(nn.Module):
