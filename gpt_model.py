@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class TokenEmbedding(nn.Module):
   def __init__(self, vocab_size, embed_size):
@@ -40,7 +41,6 @@ class MultiHeadCausalSelfAttention(nn.Module):
     self.head_size = embed_size // num_heads
     self.c_attn = nn.Linear(embed_size, 3 * embed_size)
     self.c_proj = nn.Linear(embed_size, embed_size)
-    self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size)).bool())
 
     freqs = precompute_freqs(self.head_size, block_size)
     self.register_buffer("cos_cached", freqs.cos())
@@ -67,22 +67,14 @@ class MultiHeadCausalSelfAttention(nn.Module):
     k = (k * cos) + (rotate_half(k) * sin)
     # q,k: (B, H, T, D)
 
-    # (B, T, C) -> (B(batch), T(seq_len), H(num_heads), D(head_size)) -> (B,H,T,D)
-    # And why do we want (B,H,T,D)? :To perform matrix multiplication (Q @ K.T) independently and in parallel for each head.
-    attention_scores = (q @ k.transpose(-2, -1)) * (self.head_size ** -0.5)
-    # (B,H,T,D) @ (B,H,D,T) -> (B,H,T,T)
-
-    attention_scores = attention_scores.masked_fill(self.mask[:T, :T] == 0, float("-inf"))
-    # (B,H,T,T)
-
-    attention_probs = attention_scores.softmax(dim=-1)
-    # (B,H,T,T) -> (B,H,T,T)
-
-    attention_probs = self.attn_dropout(attention_probs)
-    # (B,H,T,T) -> (B,H,T,T)
-    
-    out = attention_probs @ v 
-    # (B,H,T,T) @ (B,H,T,D) -> (B,H,T,D)
+    out = F.scaled_dot_product_attention(
+        q,
+        k,
+        v,
+        dropout_p=self.attn_dropout.p if self.training else 0.0,
+        is_causal=True,)
+    # Q(B, H, T, D), K(B, H, T, D), V(B, H, T, D)
+    # -> Flash Attention -> (B, H, T, D)
 
     out = out.transpose(1, 2).contiguous().view(B, T, C) 
     # (B,H,T,D) -> (B,T,H,D) -> (B,T,C)
