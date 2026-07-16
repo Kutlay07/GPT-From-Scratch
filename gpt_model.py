@@ -12,6 +12,17 @@ class TokenEmbedding(nn.Module):
     x =  self.embedding(tokens)
     # x -> (batch_size, block_size, embed_size)
     return x
+  
+class RMSNorm(nn.Module):
+  def __init__(self, embed_size, eps=1e-5):
+    super().__init__()
+    self.eps = eps
+    self.weight = nn.Parameter(torch.ones(embed_size))
+
+  def forward(self, x):
+    rms = torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
+    # we normally write 1 / torch.sqrt(x) but torch.rsqrt(x) does it more efficiently
+    return x * rms * self.weight
 
 def rotate_half(x):
   x1 = x[..., ::2]
@@ -89,24 +100,30 @@ class MultiHeadCausalSelfAttention(nn.Module):
 class MLP(nn.Module):
   def __init__(self, embed_size,dropout):
     super().__init__()
-    self.c_fc = nn.Linear(embed_size, 4 * embed_size)
-    self.gelu = nn.GELU()
-    self.c_proj = nn.Linear(4 * embed_size, embed_size)
+    hidden_size = int((8 * embed_size) / 3)
+    hidden_size = ((hidden_size + 63) // 64) * 64 # to make it hardware-friendly
+    self.gate_proj = nn.Linear(embed_size, hidden_size, bias=False) # creates the gate
+    self.up_proj = nn.Linear(embed_size, hidden_size, bias=False) # creates the information
+    self.down_proj = nn.Linear(hidden_size, embed_size, bias=False) # reduces it back to the embedding dimension
+    self.silu = nn.SiLU()
     self.dropout = nn.Dropout(dropout)
-    
+
   def forward(self, x):
-    x = self.c_fc(x)       # (B,T,C)  -> (B,T,4C)
-    x = self.gelu(x)       # (B,T,4C) -> (B,T,4C)
-    x = self.c_proj(x)     # (B,T,4C) -> (B,T,C)
-    x = self.dropout(x)    # (B,T,C)  -> (B,T,C)
+    up = self.up_proj(x) # (B,T,C) -> (B,T,hidden_size)
+    gate = self.gate_proj(x) # (B,T,embed_size) -> (B,T,hidden_size)
+    gate = self.silu(gate) # -> (B,T,hidden_size) (same)
+    x = gate * up # Element-wise multiplication
+    x = self.down_proj(x) # (B,T,hidden_size) -> (B,T,embed_size)
+    x = self.dropout(x) # (B,T,embed_size)  (same)
+  
     return x
   
 class DecoderBlock(nn.Module):
   def __init__(self, embed_size, num_heads, block_size, dropout):
     super().__init__()
-    self.layer_norm1 = nn.LayerNorm(embed_size)
+    self.layer_norm1 = RMSNorm(embed_size)
     self.attn = MultiHeadCausalSelfAttention(embed_size, num_heads, block_size, dropout)
-    self.layer_norm2 = nn.LayerNorm(embed_size)
+    self.layer_norm2 = RMSNorm(embed_size)
     self.mlp = MLP(embed_size, dropout)
 
   def forward(self, x):
@@ -122,7 +139,7 @@ class GPT(nn.Module):
     self.blocks = nn.ModuleList(
         [DecoderBlock(embed_size, num_heads, block_size, dropout) 
         for _ in range(num_layers)])
-    self.ln_f = nn.LayerNorm(embed_size)
+    self.ln_f = RMSNorm(embed_size)
     self.lm_head = nn.Linear(embed_size, vocab_size, bias=False) # (B,T,C) -> (B,T,V(vocab_size))
     # Weight Tying
     self.lm_head.weight = self.token_embedding.embedding.weight # (V,C)
