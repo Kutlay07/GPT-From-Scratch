@@ -38,13 +38,22 @@ def generate(prompt, max_new_tokens, temperature=0.0, top_k=None, top_p=None):
     token_ids = tokenize(prompt)
     tokens = torch.tensor(token_ids, dtype=torch.long).unsqueeze(0)
     tokens = tokens.to(device)
+    
+    past_kvs = None
 
     with torch.no_grad():
-        for _ in range(max_new_tokens):
-            if tokens.size(1) > BLOCK_SIZE:
-                tokens = tokens[:, -BLOCK_SIZE:]
+        for step in range(max_new_tokens):
+            if step == 0:
+                input_tokens = tokens[:, -BLOCK_SIZE:]
+                
+            else:
+                input_tokens = tokens[:, -1:]
 
-            logits = model(tokens)
+            logits, past_kvs = model(
+                input_tokens,
+                past_kvs=past_kvs,
+                use_cache=True,
+            )
             logits = logits[:, -1, :]
 
             if temperature <= 0:

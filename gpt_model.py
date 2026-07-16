@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import *
 
 class TokenEmbedding(nn.Module):
   def __init__(self, vocab_size, embed_size):
@@ -53,12 +54,12 @@ class MultiHeadCausalSelfAttention(nn.Module):
     self.c_attn = nn.Linear(embed_size, 3 * embed_size)
     self.c_proj = nn.Linear(embed_size, embed_size)
 
-    freqs = precompute_freqs(self.head_size, block_size)
+    freqs = precompute_freqs(self.head_size, MAX_SEQ_LEN)
     self.register_buffer("cos_cached", freqs.cos())
     self.register_buffer("sin_cached", freqs.sin())
 
 
-  def forward(self, x):
+  def forward(self, x, past_k=None, past_v=None):
     B, T, C = x.shape
     # x: (B, T, C)
 
@@ -70,14 +71,23 @@ class MultiHeadCausalSelfAttention(nn.Module):
     v = v.view(B, T, self.num_heads, self.head_size).transpose(1, 2)
     # (B, T, 768) -> (B,T, 12, 64) -> (B, 12, T, 64)
 
-    cos = self.cos_cached[:T].unsqueeze(0).unsqueeze(0)
-    sin = self.sin_cached[:T].unsqueeze(0).unsqueeze(0)
+
+    past_len = 0 if past_k is None else past_k.size(2)
+    
+    cos = self.cos_cached[past_len : past_len + T].unsqueeze(0).unsqueeze(0)
+    sin = self.sin_cached[past_len : past_len + T].unsqueeze(0).unsqueeze(0)
     # cos,sin: (1, 1, T, D)
 
     q = (q * cos) + (rotate_half(q) * sin)
     k = (k * cos) + (rotate_half(k) * sin)
     # q,k: (B, H, T, D)
 
+    if past_k is not None:
+      k = torch.cat([past_k, k], dim=2)
+      
+    if past_v is not None:
+      v = torch.cat([past_v, v], dim=2)
+      
     out = F.scaled_dot_product_attention(
         q,
         k,
@@ -95,7 +105,11 @@ class MultiHeadCausalSelfAttention(nn.Module):
 
     out = self.resid_dropout(out)
     # (B,T,C) -> (B,T,C)
-    return out
+    
+    new_k = k # (B, H, T_total, D)
+    new_v = v # (B, H, T_total, D)
+    
+    return out, new_k, new_v
 
 class MLP(nn.Module):
   def __init__(self, embed_size,dropout):
@@ -121,15 +135,23 @@ class MLP(nn.Module):
 class DecoderBlock(nn.Module):
   def __init__(self, embed_size, num_heads, block_size, dropout):
     super().__init__()
-    self.layer_norm1 = RMSNorm(embed_size)
+    self.rms_norm1 = RMSNorm(embed_size)
     self.attn = MultiHeadCausalSelfAttention(embed_size, num_heads, block_size, dropout)
-    self.layer_norm2 = RMSNorm(embed_size)
+    self.rms_norm2 = RMSNorm(embed_size)
     self.mlp = MLP(embed_size, dropout)
 
-  def forward(self, x):
-    x = x + self.attn(self.layer_norm1(x)) 
-    x = x + self.mlp(self.layer_norm2(x))
-    return x
+  def forward(self, x, past_k=None, past_v=None):
+    
+    attn, new_k, new_v = self.attn(
+      self.rms_norm1(x),
+      past_k=past_k,
+      past_v=past_v,
+    )
+    
+    x = x + attn
+    
+    x = x + self.mlp(self.rms_norm2(x))
+    return x, new_k, new_v
   
 class GPT(nn.Module):
   def __init__(self, vocab_size, embed_size, block_size, dropout, num_heads, num_layers):
@@ -139,22 +161,40 @@ class GPT(nn.Module):
     self.blocks = nn.ModuleList(
         [DecoderBlock(embed_size, num_heads, block_size, dropout) 
         for _ in range(num_layers)])
-    self.ln_f = RMSNorm(embed_size)
+    self.rms_norm_f = RMSNorm(embed_size)
     self.lm_head = nn.Linear(embed_size, vocab_size, bias=False) # (B,T,C) -> (B,T,V(vocab_size))
     # Weight Tying
     self.lm_head.weight = self.token_embedding.embedding.weight # (V,C)
 
-  def forward(self, tokens):
+  def forward(self, tokens, past_kvs=None, use_cache=False,):
+    if use_cache:
+      if past_kvs is None:
+        past_kvs = [(None, None) for _ in range(len(self.blocks))]
+      
+      new_past_kvs = []
+    
     # tokens -> (B, T)
-
     x = self.token_embedding(tokens) # -> (B, T, C)
     x = self.dropout(x)
 
-    for block in self.blocks:
-      x = block(x)
+    if use_cache:
+      for block, (past_k, past_v) in zip(self.blocks, past_kvs):
+        x, new_k, new_v = block(
+          x,
+          past_k=past_k,
+          past_v=past_v,
+        )
+        new_past_kvs.append((new_k, new_v))
+        
+    else:
+      for block in self.blocks:
+        x, _, _ = block(x)
 
-    x = self.ln_f(x)
+    x = self.rms_norm_f(x)
 
     logits = self.lm_head(x) # (B,T,C) -> (B,T,V(vocab_size))
+    
+    if use_cache:
+      return logits, new_past_kvs
     
     return logits
