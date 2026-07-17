@@ -1,4 +1,9 @@
 ============================================================
+GPT-From-Scratch Sample Generations
+Model: Decoder-only GPT
+Dataset: WikiText-2
+
+============================================================
 Prompt:
 The
 
@@ -37,7 +42,8 @@ She was a dangerous time , and the season ended with a 4 – 1 record , which wa
  
  = = = Liverpool Academy = = = 
  
- Torres made his first Premier League debut on 24 August , after he was selected as a substitute for Spain 's UEFA Champions League , which was his only goal in the 1 – 0 win on 11 August . Torres scored the opening goal of the season in Liverpool 's 1 – 0 home
+Torres made his first Premier League debut on 24 August , after he was selected as a substitute for Spain 's UEFA Champions League ,
+which was his only goal in the 1 – 0 win on 11 August . Torres scored the opening goal of the season in Liverpool 's 1 – 0 home
 
 ==============================================================
 
@@ -49,4 +55,104 @@ Drogba is a reference to the island of <unk> , where the island is located .
  
  = = = = Republic of Ireland = = = = 
  
- The Republic of Ireland is a parliamentary democracy based on the island of Ireland . The Republic of Ireland is the crown of Ireland , the United Kingdom , and the Northern Ireland . The Republic is a popular angling destination . The Republic is a popular angling destination which is a popular angling destination . The temperate Irish climate
+The Republic of Ireland is a parliamentary democracy based on the island of Ireland . The Republic of Ireland is the crown of Ireland , the United Kingdom ,
+and the Northern Ireland . The Republic is a popular angling destination . The Republic is a popular angling destination which is a popular angling destination . The temperate Irish climate
+
+============================================================
+Final Model - Validation Loss: 2.2648 - Perplexity: 9.79
+============================================================
+
+Prompt:
+"The king was"
+
+Settings:
+temperature = 0.0
+top_k = None
+top_p = None
+
+Output:
+The king was the first divisions of the  , a  , a  , and books not found at the time . 
+ 
+ = = =  and  = = = 
+ 
+The list of the diocese of Omaha was not  . The first  were the first to be established in 1879 .
+The first leading up to the city was the principal figure in 1852 , with the city being renamed Lanesboro in 1859 . This was largely financed by the state 's population boom ,
+and the streets were established . With the brown newspaper , the first breakthrough in 1841 did not replace the indigo . The maneuvers became the first  in the state of the tops of the newspaper , and the German .
+
+=============================================================
+
+Prompt:
+"The king was"
+
+Settings:
+temperature = 0.8
+top_k = 50
+top_p = 0.90
+
+Output:
+The king was the first divisions of one of four of the trial . During his adopted use of plaque in the wider sub - divisions , Richard Owen , and from their own 1967 , he was elected president of the illegitimate underground .
+The Russians were supported by their anti - Jesuit department who distributed the bodyline , and popular vote based on Native American wealth .
+In the 1950s this constituency was the  of the American Civil War and the memorials ,  the Crete and the leaders of the  of its  and  and the Confederacy .
+The displacement of Wisconsin outdoors operate on the use of the  to build a sunken cruiser from the Royal Navy and French Navy . The Navy would therefore provide some  them to the French Navy and the spring of 1615 ,
+
+===============================================================
+
+Prompt:
+"In the future, AI"
+
+Settings:
+temperature = 0.7
+top_k = 40
+top_p = 0.95
+
+Output:
+In the future, AI program would be released far too long to be unavailable . 
+When the England home strip was being moved forward , it was reached  on the possibility that the Dawn had come to be used in the large number of theater . 
+The England home strip was not widely known , but a united parliament now only had completely finished with four consecutive years , a match that was drawn . Then , 
+the Observatory also negotiated a match between the two teams , once daily in front of their final match at the 2006 end of the year . 
+In the 70th - minute again , England lost 43 players ( 40 – 3 , and the 1999 Rugby World Cup ) went on to win the All Blacks . In the first Rugby World Cup in 1987 where 
+Wales lost to New Zealand ; this included the All Blacks ,  and the All Blacks performed a  ( called  ) ; the  ; and Wales ' national championship race . Wales ' 1965 – a national championship race stewardship of the Welsh rugby . Wales ' 
+
+=================================================================
+
+Prompt:
+"Once upon a time"
+
+Settings:
+temperature = 1.0
+top_k = 50
+top_p = 0.90
+
+Output:
+Once upon a time . When You Only Live Twice was nearly six minutes and a single - letter name was changed in 2005 . But the film was nearly 96 , 000 . 
+ 
+"
+" 
+ = You Only Live Twice ( film ) = 
+ 
+You Only Live Twice ( 1967 ) is an action film directed by Today 's crew for the World  Oldhammed because it is celebrated annually as the title song
+"" You Only Live Twice "" . It was the fourth and final single from the film , and the fifth and final single from the 1901 Bollywood film , the song was directed by   .
+The song 's accompanying soundtrack was composed by The Washington Post . The soundtrack was released on November 22 , 2010 , containing two used dates from contemporary music .  the original ,
+all critics praised Roxas ' sound recording and it was met with an electronic brainwashing dre setting and leaning changed 9 / 10 days later , the title track selection of the first session in , the title
+
+===================================================================
+
+Prompt:
+"Python is"
+
+Settings:
+temperature = 0.5
+top_k = 20
+top_p = 0.9
+
+Output:
+Python is the highest salary because there is a record of 15 – 18 at any time . 
+ 
+ = = = Formats and track listings = = = 
+ 
+ Sourced from Tommy Lawton profile at the England Football Archive ( subscription required ) 
+ British leaders suggestions that he could not afford to place the creation of the sport , and be able to use the sport . In England , he was not a salesman and generally used an exhibition for England Under - 21 internationals .
+ He was also notable as a BP to determine the creation of the governing body , as he was the head of the International Rugby Board of Cricket Club (  ) , a non - profit company and the sport 's successful campaign . 
+ 
+ = =
+
