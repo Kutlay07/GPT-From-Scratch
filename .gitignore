@@ -7,3 +7,4 @@ checkpoints/
 .vscode/
 .ipynb_checkpoints/
 .DS_Store
+huggingface_model/model.safetensors

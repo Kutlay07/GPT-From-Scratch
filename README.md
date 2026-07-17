@@ -1,96 +1,107 @@
 # GPT From Scratch
 
+<p align="center">
+
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Transformers-yellow?logo=huggingface)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Status](https://img.shields.io/badge/Status-Active-success)
 
-A decoder-only GPT-style Transformer implemented entirely from scratch using **PyTorch**.
+</p>
 
-The goal of this project is to understand every major component behind modern Large Language Models by implementing them manually without relying on high-level libraries such as Hugging Face Transformers.
+A modern **GPT-style Decoder-Only Transformer** implemented completely from scratch using **PyTorch**.
 
-The implementation now includes several modern architectural improvements such as **Rotary Position Embeddings (RoPE)**, **Flash Attention**, **Mixed Precision Training**, and **Weight Tying**, making it significantly closer to modern GPT architectures.
+The primary goal of this project is educational: understanding how modern Large Language Models work by implementing every important component manually instead of relying on high-level frameworks.
+
+Unlike a minimal GPT implementation, this project gradually evolves toward a modern LLM architecture by integrating many techniques used in today's production models.
 
 ---
 
-# 🏗️ Architecture
+# Project Goals
 
-![GPT Architecture](images/Architecture.png)
+Instead of using an existing implementation, every major component is built manually:
 
-The model follows the decoder-only Transformer architecture introduced by OpenAI GPT.
-
-### Main Components
-
-- Token Embeddings
-- Rotary Position Embeddings (RoPE)
-- Multi-Head Causal Self-Attention
-- Flash Attention (PyTorch SDPA)
-- Feed Forward Network (MLP with GELU)
-- Residual Connections
-- Layer Normalization (Pre-LN)
-- Weight Tying
-- Language Modeling Head
-
-## 📊 Feature Status
-
-| Feature | Status |
-|---------|:------:|
-| Decoder-only GPT | ✅ |
-| Multi-Head Causal Self-Attention | ✅ |
-| Rotary Position Embeddings (RoPE) | ✅ |
-| Flash Attention (PyTorch SDPA) | ✅ |
-| MLP with GELU | ✅ |
-| Pre-LayerNorm | ✅ |
-| Weight Tying | ✅ |
-| GPT-2 Tokenizer (`tiktoken`) | ✅ |
-| Automatic Mixed Precision (AMP) | ✅ |
-| Gradient Clipping | ✅ |
-| Validation Loss | ✅ |
-| Perplexity Evaluation | ✅ |
-| Resume Training | ✅ |
-| Sliding Window Dataset | ✅ |
-| Top-k Sampling | ✅ |
-| Top-p Sampling | ✅ |
-| Temperature Sampling | ✅ |
-| Learning Rate Scheduler | ⏳ |
-| KV Cache | ⏳ |
-| Hugging Face Export | ⏳ |
-| RMSNorm | ⏳ |
-| SwiGLU | ⏳ |
----
-
-# ✨ Features
-
-## Model Architecture
-
-- Decoder-only GPT architecture
-- Multi-Head Causal Self-Attention
+- Decoder-only Transformer
+- Multi-Head Causal Self Attention
 - Rotary Position Embeddings (RoPE)
 - Flash Attention
-- Feed Forward Network (MLP + GELU)
-- Residual Connections
-- Pre-LayerNorm
+- RMSNorm
+- SwiGLU Feed Forward Network
+- KV Cache
 - Weight Tying
+- Mixed Precision Training
+- Checkpoint Resume
+- Hugging Face Export
+
+The repository is designed as a learning project that grows version by version, with each release introducing a new architectural improvement.
+
+The focus is on readability, educational value, and understanding how modern GPT models are implemented under the hood.
+---
+
+# Architecture
+
+<p align="center">
+
+![Architecture](images/Architecture.png)
+
+</p>
+
+Current architecture:
+
+```
+Input Tokens
+      │
+Token Embedding
+      │
+RoPE
+      │
+────────────────────────────────────
+× 12 Decoder Blocks
+────────────────────────────────────
+    RMSNorm
+    ↓
+    Multi-Head Causal Self Attention
+    ↓
+    Flash Attention (SDPA)
+    ↓
+Residual Connection
+    ↓
+    RMSNorm
+    ↓
+    SwiGLU Feed Forward
+    ↓
+Residual Connection
+────────────────────────────────────
+      │
+Final RMSNorm
+      │
+Weight Tied LM Head
+      │
+Vocabulary Logits
+```
 
 ---
 
-## Data Pipeline
+# Features
 
-- WikiText-2 dataset
-- GPT-2 tokenizer (`tiktoken`)
-- Dataset cleaning
-    - `<unk>`
-    - `@-@`
-    - `@.@`
-    - `@,@`
-- Sliding Window dataset generation
-- Configurable stride
+## Transformer Architecture
+
+- Decoder-only GPT architecture
+- Multi-Head Causal Self Attention
+- Rotary Position Embeddings (RoPE)
+- Flash Attention (PyTorch SDPA)
+- RMSNorm
+- SwiGLU Feed Forward Network
+- Residual Connections
+- Weight Tying
+- KV Cache for fast autoregressive generation
 
 ---
 
-## Training
+## Training Pipeline
 
-- AdamW optimizer
+- AdamW Optimizer
+- Warmup + Cosine Learning Rate Scheduler
 - Automatic Mixed Precision (AMP)
 - Gradient Clipping
 - Validation Split
@@ -98,9 +109,19 @@ The model follows the decoder-only Transformer architecture introduced by OpenAI
 - Perplexity Evaluation
 - Resume Training
 - torch.compile() acceleration
-- GPU Training (CUDA)
 - Automatic checkpoint saving
 - Best model tracking
+
+---
+
+## Dataset Pipeline
+
+- WikiText-2
+- GPT-2 BPE tokenizer (`tiktoken`)
+- Dataset cleaning
+- Sliding-window sample generation
+- Configurable stride
+- Automatic train / validation split
 
 ---
 
@@ -112,246 +133,382 @@ Supports multiple decoding strategies:
 - Temperature Sampling
 - Top-k Sampling
 - Top-p (Nucleus) Sampling
+- KV Cache accelerated inference
 
 ---
 
-# 📁 Project Structure
+## Hugging Face Integration
+
+The project includes a custom Hugging Face wrapper without modifying the original implementation.
+
+Supported features:
+
+- `save_pretrained()`
+- `from_pretrained()`
+- `AutoModelForCausalLM`
+- SafeTensors export
+- Custom configuration class
+- Custom modeling class
+
+This allows the original implementation to remain independent while still being compatible with the Hugging Face ecosystem.
+
+---
+
+# Feature Checklist
+
+| Component | Status |
+|------------|:------:|
+| Decoder-only GPT | ✅ |
+| Multi-Head Causal Self Attention | ✅ |
+| Rotary Position Embeddings (RoPE) | ✅ |
+| Flash Attention | ✅ |
+| RMSNorm | ✅ |
+| SwiGLU | ✅ |
+| Weight Tying | ✅ |
+| KV Cache | ✅ |
+| GPT-2 Tokenizer | ✅ |
+| AMP Training | ✅ |
+| Warmup + Cosine Scheduler | ✅ |
+| Gradient Clipping | ✅ |
+| Validation Loss | ✅ |
+| Perplexity | ✅ |
+| Resume Training | ✅ |
+| Hugging Face Export | ✅ |
+| AutoModel Compatibility | ✅ |
+| SafeTensors Export | ✅ |
+
+---
+
+# Model Configuration
+
+| Parameter | Value |
+|-----------|------:|
+| Parameters | ~124M Trainable Parameters |
+| Vocabulary Size | 50,257 |
+| Layers | 12 |
+| Attention Heads | 12 |
+| Hidden Size | 768 |
+| Context Length | 128 |
+| Dropout | 0.1 |
+| Optimizer | AdamW |
+| Scheduler | Warmup + Cosine |
+| Positional Encoding | RoPE |
+| Normalization | RMSNorm |
+| Feed Forward | SwiGLU |
+
+---
+
+# Project Structure
 
 ```text
 GPT-From-Scratch/
-│
+
 ├── config.py
-├── gpt_data.py
 ├── gpt_model.py
+├── gpt_data.py
 ├── train.py
 ├── generate.py
 ├── requirements.txt
-├── README.md
+│
+├── HuggingFace/
+│   ├── configuration_gpt_fs.py
+│   ├── modeling_gpt_fs.py
+│   ├── export.py
+│   └── __init__.py
 │
 ├── checkpoints/
-├── weights/
 ├── outputs/
-│   └── sample_generation.txt
-│
-└── images/
-    └── Architecture.png
+├── images/
+└── huggingface_model/
 ```
 
 ---
 
-# ⚙️ Model Configuration
+## 📈 Training Progress
 
-| Parameter | Value |
-|-----------|------:|
-| Vocabulary Size | 50,257 |
-| Embedding Size | 768 |
-| Number of Layers | 12 |
-| Number of Heads | 12 |
-| Context Length | 128 |
-| Dropout | 0.1 |
-| Optimizer | AdamW |
+The model was trained incrementally using checkpoint resume. The figure below illustrates the validation loss across the most significant training sessions, showing the gradual improvement throughout development.
+
+<p align="center">
+  <img src="images/training_curve.png" width="800">
+</p>
+
+The model was trained incrementally using checkpoint resume, allowing continuous optimization while preserving the best-performing weights.
 
 ---
 
-# 📚 Dataset
+# Dataset
 
 The model is trained on the **WikiText-2** dataset.
 
 Tokenization is performed using the GPT-2 Byte Pair Encoding tokenizer provided by **tiktoken**.
 
-Training samples are generated using a configurable sliding window strategy with adjustable stride.
+Training samples are generated using a configurable sliding-window strategy.
 
 ---
 
-# 🚀 Training
+# Training
 
-Run training with
+Training can be started with
 
 ```bash
 python train.py
 ```
 
-The training pipeline automatically
+The training pipeline automatically handles:
 
-- Downloads the dataset
-- Cleans dataset artifacts
-- Tokenizes the text
-- Creates sliding-window training samples
-- Splits the dataset into training and validation sets
-- Computes Validation Loss and Perplexity
-- Saves checkpoints
-- Tracks the best model
-- Supports checkpoint resume
+- Dataset download
+- Dataset cleaning
+- GPT-2 tokenization
+- Sliding-window dataset creation
+- Train / Validation split
+- Mixed Precision Training (AMP)
+- Warmup + Cosine Learning Rate Scheduler
+- Validation Loss evaluation
+- Perplexity calculation
+- Gradient Clipping
+- Automatic checkpoint saving
+- Resume training from checkpoints
+- Best model tracking
+
+### Best Validation Metrics:
+
+```text
+Validation Loss : 2.2648
+Perplexity      : 9.63
+```
+
 ---
 
-# 💬 Text Generation
+# Text Generation
 
-Generate text with
+Generate text using
 
 ```bash
 python generate.py
 ```
 
-Example
+Example:
 
 ```python
 output = generate(
-    "Once upon a time",
-    max_new_tokens=100,
+    "The king was",
+    max_new_tokens=200,
     temperature=0.8,
-    top_k=20,
+    top_k=50,
     top_p=0.9,
 )
 
 print(output)
 ```
 
-The generator supports multiple decoding strategies including Greedy Decoding, Temperature Sampling, Top-k Sampling, and Top-p (Nucleus) Sampling.
-
----
-
-# 📄 Sample Output
-
-Example generations can be found in
-
-```text
-outputs/sample_generation.txt
-```
-
----
-
-# 🚧 Current Progress
-
-## ✅ Completed
-
-### Model Architecture
-
-- Decoder-only GPT Transformer
-- Multi-Head Causal Self-Attention
-- Rotary Position Embeddings (RoPE)
-- Flash Attention (PyTorch SDPA)
-- Feed Forward Network (MLP with GELU)
-- Residual Connections
-- Pre-LayerNorm
-- Weight Tying
-
-### Training Pipeline
-
-- AdamW Optimizer
-- Automatic Mixed Precision (AMP)
-- Gradient Clipping
-- Validation Split
-- Validation Loss
-- Perplexity Evaluation
-- Resume Training
-- Automatic Checkpoint Saving
-- Best Model Tracking
-- torch.compile() Support
-
-### Data Pipeline
-
-- WikiText-2 Dataset
-- GPT-2 Tokenizer (tiktoken)
-- Dataset Cleaning
-- Sliding Window Dataset Generation
-- Configurable Stride
-
-### Text Generation
+Generation supports:
 
 - Greedy Decoding
 - Temperature Sampling
 - Top-k Sampling
 - Top-p (Nucleus) Sampling
+- KV Cache acceleration
 
 ---
 
-## 🔄 In Progress
+# Sample Generations
 
-- Model Training & Evaluation
+Example generations are available in
+
+```text
+outputs/sample_generation.txt
+```
+
+The file contains multiple examples using different decoding strategies, including:
+
+- Greedy decoding
+- Temperature sampling
+- Top-k sampling
+- Top-p sampling
+- Combined decoding strategies
 
 ---
 
-## 📌 Planned
+# Exporting to Hugging Face
 
-- Learning Rate Scheduler
-- KV Cache
-- Hugging Face Model Export
+Export the trained checkpoint using
+
+```bash
+python HuggingFace/export.py
+```
+
+The exported model can then be loaded directly with Transformers:
+
+```python
+from transformers import AutoModelForCausalLM
+
+model = AutoModelForCausalLM.from_pretrained(
+    "Kutlay07/GPT-From-Scratch",
+    trust_remote_code=True
+)
+```
+
+The export produces:
+
+- SafeTensors weights
+- Hugging Face configuration
+- Generation configuration
+- Custom modeling implementation
+
+without modifying the original GPT implementation.
+
+---
+
+# Roadmap
+
+## Completed
+
+### Core Architecture
+
+- Decoder-only GPT
+- Multi-Head Causal Self Attention
+- RoPE
+- Flash Attention
 - RMSNorm
 - SwiGLU
+- Weight Tying
+- KV Cache
+
+### Training
+
+- AMP
+- Warmup + Cosine Scheduler
+- Validation Pipeline
+- Perplexity
+- Gradient Clipping
+- Checkpoint Resume
+- torch.compile()
+
+### Inference
+
+- Greedy Decoding
+- Temperature Sampling
+- Top-k
+- Top-p
+- KV Cache
+
+### Hugging Face
+
+- Export Pipeline
+- AutoModel Compatibility
+- SafeTensors Export
+- save_pretrained()
+- from_pretrained()
 
 ---
 
-# 📝 Version History
+## Planned Improvements
 
-## v1.2.0
+The long-term goal is to continue modernizing the architecture by implementing additional techniques used in recent LLMs.
+
+Planned features include:
+
+- Grouped Query Attention (GQA)
+- Sliding Window Attention
+- Quantization
+- LoRA Fine-tuning
+- Longer Context Length
+- Vision Encoder
+- Multimodal Support
+- Larger-scale pretraining
+
+---
+
+# Version History
+
+## v1.3.0 — Hugging Face Integration
+
+### Added
+
+- RMSNorm
+- SwiGLU Feed Forward Network
+- KV Cache
+- Warmup + Cosine Learning Rate Scheduler
+- Hugging Face Export
+- AutoModelForCausalLM compatibility
+- SafeTensors export
+- Custom Hugging Face wrapper
+
+### Improved
+
+- Faster autoregressive inference
+- Modernized architecture
+- Cleaner project structure
+- Full Hugging Face compatibility
+
+---
+
+## v1.2.0 — Modern LLM Architecture
 
 ### Added
 
 - Rotary Position Embeddings (RoPE)
-- Flash Attention
+- Flash Attention (PyTorch SDPA)
 - Automatic Mixed Precision (AMP)
 - Gradient Clipping
 - Validation Split
 - Validation Loss
-- Perplexity Evaluation
+- Perplexity
 - Resume Training
-- torch.compile() acceleration
+- torch.compile()
 
 ### Improved
 
-- Modernized GPT architecture
+- Training stability
+- GPU memory efficiency
 - Faster attention computation
-- Faster training
-- Improved checkpoint compatibility
-- Improved evaluation pipeline
+- Better checkpoint compatibility
 
 ---
 
-## v1.1.0
+## v1.1.0 — Training Improvements
 
 ### Added
 
 - Weight Tying
 - Temperature Sampling
 - Top-k Sampling
-- Top-p (Nucleus) Sampling
+- Top-p Sampling
 - Dataset Cleaning
-- Sliding Window Dataset Generation
+- Sliding Window Dataset
 - Improved Checkpoint Management
-- Google Drive Support for Colab Training
 
 ---
 
-## v1.0.0
+## v1.0.0 — Initial Release
 
-Initial implementation featuring
+Initial implementation including:
 
-- GPT-style Decoder-only Transformer
-- Multi-Head Causal Self-Attention
+- Decoder-only GPT
+- Multi-Head Causal Self Attention
 - Training Pipeline
-- Autoregressive Text Generation
+- Text Generation
 
 ---
 
-# 🔮 Future Improvements
+# References
 
-Planned features include
+This project is inspired by:
 
-- Learning Rate Scheduler
-- KV Cache
-- Hugging Face Model Export
-- RMSNorm
-- SwiGLU
-
----
-
-# 🙏 Acknowledgements
-
-This project is inspired by
-
+- Attention Is All You Need (Vaswani et al.)
 - OpenAI GPT-1
 - OpenAI GPT-2
-- Attention Is All You Need
-- RoFormer: Enhanced Transformer with Rotary Position Embedding
+- RoFormer
 - FlashAttention
+- Hugging Face Transformers
 - Andrej Karpathy's educational materials
+
+---
+
+# License
+
+This project is licensed under the MIT License.
+
+---
+
+If you found this project helpful, consider giving it a ⭐ on GitHub.
